@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build output
+dist/
+tmux-session
+
+# OS
+.DS_Store
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
