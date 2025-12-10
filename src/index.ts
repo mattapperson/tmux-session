@@ -14,61 +14,115 @@ const colors = {
   dim: '\x1b[2m',
 };
 
-interface TmuxSession {
+interface ShpoolSession {
   name: string;
-  windows: number;
-  attached: boolean;
-  path: string;
+  status: string;
 }
 
-function checkTmux(): void {
+function isShpoolInstalled(): boolean {
   try {
-    execSync('which tmux', { stdio: 'pipe' });
+    execSync('which shpool', { stdio: 'pipe' });
+    return true;
   } catch {
-    console.error(`${colors.red}✖${colors.reset} tmux is not installed\n`);
-    console.log('To install tmux:\n');
+    return false;
+  }
+}
 
-    const platform = process.platform;
-    if (platform === 'darwin') {
-      console.log('  macOS:');
-      console.log('    brew install tmux\n');
-    } else if (platform === 'linux') {
-      console.log('  Ubuntu/Debian:');
-      console.log('    sudo apt-get install tmux\n');
-      console.log('  Fedora/RHEL:');
-      console.log('    sudo dnf install tmux\n');
-      console.log('  Arch:');
-      console.log('    sudo pacman -S tmux\n');
-    } else {
-      console.log('  Please install tmux for your operating system\n');
+function showManualInstallInstructions(): void {
+  console.log('\nTo install shpool manually:\n');
+  const platform = process.platform;
+  if (platform === 'darwin') {
+    console.log('  macOS:');
+    console.log('    brew install shpool');
+    console.log('    # or');
+    console.log('    cargo install shpool\n');
+  } else if (platform === 'linux') {
+    console.log('  Linux:');
+    console.log('    cargo install shpool\n');
+  } else {
+    console.log('  Please install shpool for your operating system');
+    console.log('  See: https://github.com/shell-pool/shpool\n');
+  }
+}
+
+async function ensureShpool(): Promise<void> {
+  if (isShpoolInstalled()) {
+    return;
+  }
+
+  const platform = process.platform;
+  const canAutoInstall = platform === 'darwin' || platform === 'linux';
+
+  if (!canAutoInstall) {
+    console.error(`${colors.red}✖${colors.reset} shpool is not installed\n`);
+    showManualInstallInstructions();
+    process.exit(1);
+  }
+
+  // Prompt user for auto-install
+  const installCommand = platform === 'darwin' ? 'brew install shpool' : 'cargo install shpool';
+  const packageManager = platform === 'darwin' ? 'Homebrew' : 'Cargo';
+
+  const shouldInstall = await select({
+    message: `shpool is not installed. Install it now using ${packageManager}?`,
+    options: [
+      { value: true, label: 'Yes, install shpool' },
+      { value: false, label: 'No, show manual instructions' },
+    ],
+  });
+
+  if (isCancel(shouldInstall)) {
+    cancel('Operation cancelled');
+    process.exit(0);
+  }
+
+  if (!shouldInstall) {
+    showManualInstallInstructions();
+    process.exit(0);
+  }
+
+  // Auto-install
+  const s = spinner();
+  s.start(`Installing shpool via ${packageManager}...`);
+
+  try {
+    execSync(installCommand, { stdio: 'pipe' });
+    s.stop(`${colors.green}✓${colors.reset} shpool installed successfully`);
+
+    // Verify installation
+    if (!isShpoolInstalled()) {
+      throw new Error('Installation completed but shpool not found in PATH');
     }
-
+  } catch (error: any) {
+    s.stop(`${colors.red}✖${colors.reset} Failed to install shpool`);
+    console.error(`\nError: ${error.message}\n`);
+    showManualInstallInstructions();
     process.exit(1);
   }
 }
 
-function getTmuxSessions(): TmuxSession[] {
+function getShpoolSessions(): ShpoolSession[] {
   try {
-    const output = execSync('tmux list-sessions -F "#{session_name}|#{session_windows}|#{session_attached}|#{session_path}"', {
+    const output = execSync('shpool list', {
       encoding: 'utf-8',
       stdio: 'pipe',
     });
 
-    return output
-      .trim()
-      .split('\n')
+    const lines = output.trim().split('\n');
+
+    // Skip header row and parse remaining lines
+    return lines
+      .slice(1)
       .filter(line => line.length > 0)
       .map(line => {
-        const [name, windows, attached, path] = line.split('|');
+        const parts = line.trim().split(/\s+/);
         return {
-          name,
-          windows: parseInt(windows, 10),
-          attached: attached === '1',
-          path: path || '',
+          name: parts[0],
+          status: parts[1] || 'unknown',
         };
       });
   } catch (error: any) {
-    // No sessions exist or tmux server not running
+    // No sessions exist or shpool daemon not running
     if (error.status === 1) {
       return [];
     }
@@ -94,12 +148,12 @@ function attachToSession(sessionName: string): void {
   setTimeout(() => {
     s.stop(`Attaching to session: ${sessionName}`);
 
-    // Hand over control to tmux
-    const tmux = spawn('tmux', ['attach-session', '-t', sessionName], {
+    // Hand over control to shpool
+    const shpool = spawn('shpool', ['attach', sessionName], {
       stdio: 'inherit',
     });
 
-    tmux.on('exit', (code) => {
+    shpool.on('exit', (code) => {
       process.exit(code || 0);
     });
   }, 200);
@@ -112,24 +166,24 @@ function createSession(sessionName: string): void {
   setTimeout(() => {
     s.stop(`Creating session: ${sessionName}`);
 
-    // Create and attach to new session
-    const tmux = spawn('tmux', ['new-session', '-s', sessionName], {
+    // In shpool, attach creates a new session if it doesn't exist
+    const shpool = spawn('shpool', ['attach', sessionName], {
       stdio: 'inherit',
     });
 
-    tmux.on('exit', (code) => {
+    shpool.on('exit', (code) => {
       process.exit(code || 0);
     });
   }, 200);
 }
 
-function killAllSessions(sessions: TmuxSession[]): void {
+function killAllSessions(sessions: ShpoolSession[]): void {
   const s = spinner();
   s.start('Killing all sessions...');
 
   try {
     sessions.forEach(session => {
-      execSync(`tmux kill-session -t "${session.name}"`, { stdio: 'pipe' });
+      execSync(`shpool kill "${session.name}"`, { stdio: 'pipe' });
     });
     s.stop(`${colors.green}✓${colors.reset} Killed ${sessions.length} session${sessions.length !== 1 ? 's' : ''}`);
   } catch (error: any) {
@@ -141,25 +195,14 @@ function killAllSessions(sessions: TmuxSession[]): void {
 async function main() {
   console.clear();
 
-  checkTmux();
+  await ensureShpool();
 
-  intro(`${colors.cyan}tmux session manager${colors.reset}`);
+  intro(`${colors.cyan}poof${colors.reset} ${colors.dim}shpool session manager${colors.reset}`);
 
-  const showAll = process.argv.includes('--all');
-  const currentDir = process.cwd();
-
-  let sessions = getTmuxSessions();
-
-  // Filter sessions by current directory unless --all flag is passed
-  if (!showAll) {
-    sessions = sessions.filter(session => {
-      // Check if session path is current directory or a subdirectory
-      return session.path === currentDir || session.path.startsWith(currentDir + '/');
-    });
-  }
+  const sessions = getShpoolSessions();
 
   if (sessions.length === 0) {
-    console.log(`${colors.dim}No active tmux sessions${colors.reset}\n`);
+    console.log(`${colors.dim}No active shpool sessions${colors.reset}\n`);
 
     const input = await text({
       message: 'Enter session name (or press Enter for UUID):',
@@ -191,11 +234,12 @@ async function main() {
     const letter = generateLetterDesignation(index);
     letterMap.set(letter, session.name);
 
-    const attachedIndicator = session.attached ? `${colors.green}●${colors.reset}` : `${colors.dim}○${colors.reset}`;
-    const windowText = `${session.windows} window${session.windows !== 1 ? 's' : ''}`;
+    const statusIndicator = session.status.toLowerCase() === 'connected'
+      ? `${colors.green}●${colors.reset}`
+      : `${colors.dim}○${colors.reset}`;
 
     console.log(
-      `  ${colors.cyan}${letter}${colors.reset}) ${session.name} ${attachedIndicator} ${colors.dim}(${windowText})${colors.reset}`
+      `  ${colors.cyan}${letter}${colors.reset}) ${session.name} ${statusIndicator}`
     );
   });
 
@@ -223,7 +267,7 @@ async function main() {
   const value = typeof input === 'string' ? input.trim() : '';
 
   if (value.toLowerCase() === 'reset') {
-    // Kill all sessions from the filtered list
+    // Kill all sessions
     killAllSessions(sessions);
     outro(`${colors.green}✓${colors.reset} All sessions cleared`);
     process.exit(0);

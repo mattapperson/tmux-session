@@ -1,19 +1,32 @@
 {
-  "name": "tmux-session",
+  "name": "poof",
   "version": "1.0.0",
-  "description": "Interactive CLI for managing tmux sessions",
+  "description": "Interactive CLI for managing shpool sessions",
   "type": "module",
   "main": "src/index.ts",
   "bin": {
-    "tmux-session": "./tmux-session"
+    "poof": "./poof"
   },
+  "files": [
+    "poof",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "bun run src/index.ts",
-    "build": "bun build --compile src/index.ts --outfile tmux-session"
+    "build": "bun build --compile src/index.ts --outfile poof"
   },
-  "keywords": ["tmux", "cli", "session-manager"],
+  "keywords": ["shpool", "cli", "session-manager"],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattapperson/poof.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mattapperson/poof/issues"
+  },
+  "homepage": "https://github.com/mattapperson/poof#readme",
   "dependencies": {
     "@clack/prompts": "^0.7.0"
   },
