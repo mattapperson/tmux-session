@@ -1,6 +1,6 @@
 # poof
 
-An interactive CLI for managing shpool sessions with an intuitive interface built with Bun.js and Clack.
+An interactive CLI for managing zmx sessions with an intuitive interface built with Bun.js and Clack.
 
 ## Features
 
@@ -12,21 +12,30 @@ An interactive CLI for managing shpool sessions with an intuitive interface buil
 
 ## Prerequisites
 
-This tool requires `shpool` to be installed on your system:
+This tool requires `zmx` to be installed on your system.
 
-**macOS:**
+**macOS (Apple Silicon):**
 ```bash
-brew install shpool
-# or
-cargo install shpool
+curl -LO https://zmx.sh/a/zmx-0.0.2-macos-aarch64.tar.gz
+tar -xzf zmx-0.0.2-macos-aarch64.tar.gz
+mv zmx ~/.local/bin/  # or /usr/local/bin/
 ```
 
-**Linux:**
+**macOS (Intel):**
 ```bash
-cargo install shpool
+curl -LO https://zmx.sh/a/zmx-0.0.2-macos-x86_64.tar.gz
+tar -xzf zmx-0.0.2-macos-x86_64.tar.gz
+mv zmx ~/.local/bin/  # or /usr/local/bin/
 ```
 
-For more information, see: https://github.com/shell-pool/shpool
+**Linux (x86_64):**
+```bash
+curl -LO https://zmx.sh/a/zmx-0.0.2-linux-x86_64.tar.gz
+tar -xzf zmx-0.0.2-linux-x86_64.tar.gz
+mv zmx ~/.local/bin/  # or /usr/local/bin/
+```
+
+For more information, see: https://github.com/neurosnap/zmx
 
 ## Installation
 
@@ -54,7 +63,7 @@ bun run build
 
 ## Usage
 
-Simply run the command to see your shpool sessions:
+Simply run the command to see your zmx sessions:
 
 ```bash
 ./poof
@@ -72,6 +81,10 @@ Simply run the command to see your shpool sessions:
 - Type a name and press Enter to create a new session with that name
 - Press Enter without typing to create a new session with a UUID name
 
+### Detaching from a session
+
+Press `Ctrl+\` to detach from the current session without terminating it.
+
 ### Examples
 
 ```bash
@@ -81,9 +94,9 @@ Simply run the command to see your shpool sessions:
 # Example output:
 # Active sessions:
 #
-#   a) project1 ●
-#   b) work ○
-#   c) dev ○
+#   a) project1
+#   b) work
+#   c) dev
 #
 # Select session (letter), create new (name), type "reset" to kill all, or press Enter for UUID:
 
@@ -109,10 +122,10 @@ bun run build
 
 The CLI uses:
 - **@clack/prompts** for the beautiful interactive interface
-- **Bun's built-in APIs** for executing shpool commands
-- **child_process spawn** to hand over terminal control to shpool
+- **Bun's built-in APIs** for executing zmx commands
+- **child_process spawn** to hand over terminal control to zmx
 
-When you select or create a session, the CLI spawns a shpool process with `stdio: 'inherit'`, which hands over complete terminal control to shpool. When you detach from shpool, you return to your normal shell.
+When you select or create a session, the CLI spawns a zmx process with `stdio: 'inherit'`, which hands over complete terminal control to zmx. When you detach from zmx (Ctrl+\), you return to your normal shell.
 
 ## Technical Details
 

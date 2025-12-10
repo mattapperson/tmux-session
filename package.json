@@ -1,7 +1,7 @@
 {
   "name": "poof",
   "version": "1.0.0",
-  "description": "Interactive CLI for managing shpool sessions",
+  "description": "Interactive CLI for managing zmx sessions",
   "type": "module",
   "main": "src/index.ts",
   "bin": {
@@ -16,7 +16,7 @@
     "dev": "bun run src/index.ts",
     "build": "bun build --compile src/index.ts --outfile poof"
   },
-  "keywords": ["shpool", "cli", "session-manager"],
+  "keywords": ["zmx", "cli", "session-manager", "terminal"],
   "author": "",
   "license": "MIT",
   "repository": {

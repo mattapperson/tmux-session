@@ -17,7 +17,7 @@ The workflow uses NPM's **Trusted Publishers** feature, which eliminates the nee
 5. Configure the GitHub Actions publisher:
    - **Provider**: GitHub Actions
    - **Repository owner**: `mattapperson`
-   - **Repository name**: `tmux-session`
+   - **Repository name**: `poof`
    - **Workflow name**: `publish.yml`
    - **Environment name**: (leave empty)
 
