@@ -1,6 +1,6 @@
 {
   "name": "poof",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Interactive CLI for managing zmx sessions",
   "type": "module",
   "main": "src/index.ts",
@@ -16,7 +16,12 @@
     "dev": "bun run src/index.ts",
     "build": "bun build --compile src/index.ts --outfile poof"
   },
-  "keywords": ["zmx", "cli", "session-manager", "terminal"],
+  "keywords": [
+    "zmx",
+    "cli",
+    "session-manager",
+    "terminal"
+  ],
   "author": "",
   "license": "MIT",
   "repository": {
