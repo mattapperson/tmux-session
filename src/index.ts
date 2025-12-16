@@ -18,6 +18,63 @@ interface ZmxSession {
   name: string;
 }
 
+interface CliOptions {
+  command: 'interactive' | 'list' | 'attach' | 'create' | 'kill' | 'help' | 'version';
+  sessionName?: string;
+}
+
+function parseArgs(): CliOptions {
+  const args = process.argv.slice(2);
+
+  if (args.length === 0) {
+    return { command: 'interactive' };
+  }
+
+  const first = args[0];
+
+  // Handle flags
+  if (first === '-l' || first === '--list') {
+    return { command: 'list' };
+  }
+  if (first === '-h' || first === '--help') {
+    return { command: 'help' };
+  }
+  if (first === '-v' || first === '--version') {
+    return { command: 'version' };
+  }
+  if (first === '-a' || first === '--attach') {
+    if (!args[1]) {
+      console.error(`${colors.red}Error:${colors.reset} --attach requires a session name`);
+      process.exit(1);
+    }
+    return { command: 'attach', sessionName: args[1] };
+  }
+  if (first === '-c' || first === '--create') {
+    if (!args[1]) {
+      console.error(`${colors.red}Error:${colors.reset} --create requires a session name`);
+      process.exit(1);
+    }
+    return { command: 'create', sessionName: args[1] };
+  }
+  if (first === '-k' || first === '--kill') {
+    if (!args[1]) {
+      console.error(`${colors.red}Error:${colors.reset} --kill requires a session name`);
+      process.exit(1);
+    }
+    return { command: 'kill', sessionName: args[1] };
+  }
+
+  // Positional argument = session name (attach/create)
+  if (!first.startsWith('-')) {
+    return { command: 'attach', sessionName: first };
+  }
+
+  // Unknown flag
+  console.error(`${colors.red}Error:${colors.reset} Unknown option: ${first}`);
+  console.error('Run "poof --help" for usage information');
+  process.exit(1);
+}
+
 function isZmxInstalled(): boolean {
   try {
     execSync('which zmx', { stdio: 'pipe' });
@@ -159,10 +216,97 @@ function killAllSessions(sessions: ZmxSession[]): void {
   }
 }
 
-async function main() {
-  console.clear();
+// Non-interactive CLI commands
 
-  await ensureZmx();
+function showHelp(): void {
+  console.log(`
+${colors.cyan}poof${colors.reset} - zmx session manager
+
+${colors.yellow}USAGE:${colors.reset}
+  poof                      Interactive mode (default)
+  poof <session>            Attach to session (creates if not exists)
+  poof -l, --list           List all sessions
+  poof -a, --attach <name>  Attach to session (creates if not exists)
+  poof -c, --create <name>  Create a new session (fails if exists)
+  poof -k, --kill <name>    Kill a session
+  poof -h, --help           Show this help
+  poof -v, --version        Show version
+
+${colors.yellow}EXAMPLES:${colors.reset}
+  poof                      Start interactive session picker
+  poof myproject            Attach to or create "myproject"
+  poof -l                   List all active sessions
+  poof -k myproject         Kill the "myproject" session
+`);
+}
+
+function showVersion(): void {
+  console.log('poof v1.0.0');
+}
+
+function listSessionsDirect(): void {
+  const sessions = getZmxSessions();
+
+  if (sessions.length === 0) {
+    console.log('No active zmx sessions');
+    return;
+  }
+
+  console.log('Active zmx sessions:');
+  sessions.forEach((session, index) => {
+    const letter = generateLetterDesignation(index);
+    console.log(`  ${letter}) ${session.name}`);
+  });
+}
+
+function attachSessionDirect(sessionName: string): void {
+  const zmx = spawn('zmx', ['attach', sessionName], {
+    stdio: 'inherit',
+  });
+
+  zmx.on('exit', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function createSessionDirect(sessionName: string): void {
+  const sessions = getZmxSessions();
+  const exists = sessions.some(s => s.name === sessionName);
+
+  if (exists) {
+    console.error(`${colors.red}Error:${colors.reset} Session "${sessionName}" already exists. Use --attach instead.`);
+    process.exit(1);
+  }
+
+  const zmx = spawn('zmx', ['attach', sessionName], {
+    stdio: 'inherit',
+  });
+
+  zmx.on('exit', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function killSessionDirect(sessionName: string): void {
+  const sessions = getZmxSessions();
+  const exists = sessions.some(s => s.name === sessionName);
+
+  if (!exists) {
+    console.error(`${colors.red}Error:${colors.reset} Session "${sessionName}" not found`);
+    process.exit(1);
+  }
+
+  try {
+    execSync(`zmx kill "${sessionName}"`, { stdio: 'pipe' });
+    console.log(`${colors.green}✓${colors.reset} Killed session: ${sessionName}`);
+  } catch (error: any) {
+    console.error(`${colors.red}✖${colors.reset} Failed to kill session: ${sessionName}`);
+    process.exit(1);
+  }
+}
+
+async function runInteractiveMode() {
+  console.clear();
 
   intro(`${colors.cyan}poof${colors.reset} ${colors.dim}zmx session manager${colors.reset}`);
 
@@ -250,6 +394,42 @@ async function main() {
     // Create new session with provided name
     outro(`${colors.green}✓${colors.reset} Creating new session`);
     createSession(value);
+  }
+}
+
+async function main() {
+  const options = parseArgs();
+
+  // Help and version don't need zmx
+  if (options.command === 'help') {
+    showHelp();
+    return;
+  }
+  if (options.command === 'version') {
+    showVersion();
+    return;
+  }
+
+  // All other commands need zmx
+  await ensureZmx();
+
+  switch (options.command) {
+    case 'list':
+      listSessionsDirect();
+      break;
+    case 'attach':
+      attachSessionDirect(options.sessionName!);
+      break;
+    case 'create':
+      createSessionDirect(options.sessionName!);
+      break;
+    case 'kill':
+      killSessionDirect(options.sessionName!);
+      break;
+    case 'interactive':
+    default:
+      await runInteractiveMode();
+      break;
   }
 }
 
